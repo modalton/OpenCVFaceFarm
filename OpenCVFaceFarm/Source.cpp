@@ -1,9 +1,10 @@
 #include <opencv2/core/utility.hpp>
-#include "opencv2/objdetect.hpp"
-#include "opencv2/videoio.hpp"
-#include "opencv2/highgui.hpp"
-#include "opencv2/imgproc.hpp"
+#include <opencv2/objdetect.hpp>
+#include <opencv2/videoio.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 #include <opencv2/tracking.hpp>
+
 
 #include <iostream>
 #include <vector>
@@ -13,7 +14,7 @@
 using namespace cv;
 
 
-String face_xml = "C:/Users/Michael Dalton/Desktop/opencv/sources/data/haarcascades/haarcascade_frontalface_alt.xml";
+String face_xml = "C:/Users/Michael Dalton/Desktop/opencv_build/install/etc/haarcascades/haarcascade_frontalface_alt.xml";
 CascadeClassifier face_cascade;
 void overlay(Mat frame);
 void track(Mat frame, MultiTracker& tracker);
@@ -27,10 +28,12 @@ int main(void)
 
 	//basic mat
 	Mat frame;
+	Mat trackerframe;
 
 	//init tracker and track container
 	MultiTracker tracker("KCF");
-	std::vector<Rect> tracked_objects;
+	std::vector<Rect2d> tracked_objects;
+	
 
 	//Load our pre-made xml
 	if (!face_cascade.load(face_xml)) { std::cerr << "Error Loading face_xml\n"; return -1; };
@@ -41,19 +44,24 @@ int main(void)
 	double height = feed.get(CV_CAP_PROP_FRAME_HEIGHT);
 
 	namedWindow("Test", CV_WINDOW_AUTOSIZE);
-	namedWindow("Tracker", CV_WINDOW_AUTOSIZE);
+	//namedWindow("Tracker Window", CV_WINDOW_AUTOSIZE);
+	feed >> trackerframe;
+	selectROI("Tracker Window", trackerframe, tracked_objects);
+	tracker.add(trackerframe, tracked_objects);
 
 	while (true)
 	{
 		bool capture = feed.read(frame);
+		bool trackcapture = feed.read(trackerframe);
 
-		if (!capture)
+		if (!capture || !trackcapture)
 		{
 			std::cout << "Can't read from feed" << std::endl;
 			break;
 		}
 
 		overlay(frame);
+		track(trackerframe, tracker);
 
 		//Manual way to break our loop if stuck
 		char c = (char)waitKey(10);
@@ -85,5 +93,9 @@ void overlay(Mat frame)
 void track(Mat frame, MultiTracker& tracker)
 {
 	tracker.update(frame);
-	imshow("tracker", frame);
+	for (unsigned i = 0; i < tracker.objects.size(); i++)
+	{
+		rectangle(frame, tracker.objects[i], Scalar(255, 0, 0), 2, 1);
+	}
+	imshow("Tracker Window", frame);
 }
