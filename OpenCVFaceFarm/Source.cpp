@@ -18,22 +18,24 @@ String face_xml = "C:/Users/Michael Dalton/Desktop/opencv_build/install/etc/haar
 String face_xml1 = "C:/Users/Michael Dalton/Desktop/opencv_build/install/etc/haarcascades/haarcascade_frontalface_alt2.xml";
 String face_xml2 = "C:/Users/Michael Dalton/Desktop/opencv_build/install/etc/haarcascades/haarcascade_frontalface_alt_tree.xml";
 String face_xml3 = "C:/Users/Michael Dalton/Desktop/opencv_build/install/etc/haarcascades/haarcascade_frontalface_default.xml";
+CascadeClassifier face_cascade;
 
-void overlay(Mat frame, std::vector<CascadeClassifier>& face_cascade);
+
+void overlay(Mat frame);
 void track(Mat frame, MultiTracker& tracker);
 
 
 //Program start
 int main(void)
 {
-	std::vector<CascadeClassifier> face_cascade(4);
-	std::vector<String> xmls = {face_xml, face_xml1, face_xml2, face_xml3};
-	//cam
-	VideoCapture feed(video);
-
 	//basic mats
 	Mat frame;
 	Mat trackerframe;
+
+	//cam
+	VideoCapture feed(video);
+	feed.read(frame);
+
 
 	//init tracker and track container
 	//MultiTracker tracker("KCF");
@@ -41,11 +43,7 @@ int main(void)
 	
 
 	//Load our pre-made xml
-	//if (!face_cascade.load(face_xml)) { std::cerr << "Error Loading face_xml\n"; return -1; };
-	for (int i = 0; i<face_cascade.size(); i++)
-	{
-		if (!face_cascade[i].load(xmls[i])) { std::cerr << "Error loading xmls\n"; return -1; }
-	}
+	if (!face_cascade.load(face_xml1)) { std::cerr << "Error Loading face_xml\n"; return -1; };
 	if (!feed.isOpened()) { std::cerr << "Error opening webcam\n"; return -1; }
 
 	double width = feed.get(CV_CAP_PROP_FRAME_WIDTH);
@@ -57,13 +55,13 @@ int main(void)
 	//selectROI("Tracker Window", trackerframe, tracked_objects);
 	//if (tracked_objects.size() <= 0) { return 0; }
 	//tracker.add(trackerframe, tracked_objects);
-	feed.read(frame);
+	
 	
 	//--- INITIALIZE VIDEOWRITER
 	VideoWriter writer;
 	int codec = CV_FOURCC('M', 'J', 'P', 'G');  // select desired codec (must be available at runtime)
 	double fps = 60.0;                          // framerate of the created video stream
-	String filename = "C:/Users/Michael Dalton/Documents/Visual Studio 2015/Projects/OpenCVFaceFarm/Tempdata/temp.avi";             // name of the output video file
+	String filename = "C:/Users/Michael Dalton/Documents/Visual Studio 2015/Projects/OpenCVFaceFarm/Tempdata/alt.avi";             // name of the output video file
 	writer.open(filename, codec, fps, frame.size(), true);
 
 	if (!writer.isOpened()) { std::cerr << "couldnt open\n"; return -1; }
@@ -79,7 +77,7 @@ int main(void)
 			break;
 		}
 
-		overlay(frame, face_cascade);
+		overlay(frame);
 		writer.write(frame);
 		//track(trackerframe, tracker);
 
@@ -90,28 +88,21 @@ int main(void)
 	return 0;
 }
 
-void overlay(Mat frame, std::vector<CascadeClassifier>& face_cascade)
+void overlay(Mat frame)
 {  
-	std::vector<std::vector<Rect>> faces(face_cascade.size());
+	std::vector<Rect> faces;
 	Mat frame_gray;
 	cvtColor(frame, frame_gray, COLOR_BGR2GRAY);
 	equalizeHist(frame_gray, frame_gray);
 	//-- Detect faces
-	for (int i = 0; i<face_cascade.size(); i++)
-	{
-		face_cascade[i].detectMultiScale(frame_gray, faces[i], 1.1, 2, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
-	}
+	face_cascade.detectMultiScale(frame_gray, faces, 1.1, 2, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
 	
-	for (int j = 0; j < faces.size(); j++)
+
+	for (int i = 0; i < faces.size(); i++)
 	{
-		//bizzare compiler error if put j directly in next for statment
-		int x = j;
-		for (int i = 0; i < faces[x].size(); i++)
-		{
-			Point center(faces[j][i].x + faces[j][i].width / 2, faces[j][i].y + faces[j][i].height / 2);
-			rectangle(frame, faces[j][i], Scalar(25+(75*j), 80*j, 40*j), 3, 8, 0);
-			Mat faceROI = frame_gray(faces[j][i]);
-		}
+		Point center(faces[i].x + faces[i].width / 2, faces[i].y + faces[i].height / 2);
+		rectangle(frame, faces[i], Scalar(100, 100, 100), 3, 8, 0);
+		Mat faceROI = frame_gray(faces[i]);
 	}
 	//Display on window*/
 	//imshow("Test", frame);
