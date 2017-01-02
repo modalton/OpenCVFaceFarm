@@ -44,19 +44,29 @@ int main(void)
 	//if (!face_cascade.load(face_xml)) { std::cerr << "Error Loading face_xml\n"; return -1; };
 	for (int i = 0; i<face_cascade.size(); i++)
 	{
-		//if (!face_cascade[i].load(xmls[i])) { std::cerr << "Error loading xmls\n"; return -1; }
+		if (!face_cascade[i].load(xmls[i])) { std::cerr << "Error loading xmls\n"; return -1; }
 	}
 	if (!feed.isOpened()) { std::cerr << "Error opening webcam\n"; return -1; }
 
 	double width = feed.get(CV_CAP_PROP_FRAME_WIDTH);
 	double height = feed.get(CV_CAP_PROP_FRAME_HEIGHT);
 
-	namedWindow("Test", CV_WINDOW_AUTOSIZE);
+	//namedWindow("Test", CV_WINDOW_AUTOSIZE);
 	//namedWindow("Tracker Window", CV_WINDOW_AUTOSIZE);
 	//feed >> trackerframe;
 	//selectROI("Tracker Window", trackerframe, tracked_objects);
 	//if (tracked_objects.size() <= 0) { return 0; }
 	//tracker.add(trackerframe, tracked_objects);
+	feed.read(frame);
+	
+	//--- INITIALIZE VIDEOWRITER
+	VideoWriter writer;
+	int codec = CV_FOURCC('M', 'J', 'P', 'G');  // select desired codec (must be available at runtime)
+	double fps = 60.0;                          // framerate of the created video stream
+	String filename = "C:/Users/Michael Dalton/Documents/Visual Studio 2015/Projects/OpenCVFaceFarm/Tempdata/temp.avi";             // name of the output video file
+	writer.open(filename, codec, fps, frame.size(), true);
+
+	if (!writer.isOpened()) { std::cerr << "couldnt open\n"; return -1; }
 
 	while (true)
 	{
@@ -70,6 +80,7 @@ int main(void)
 		}
 
 		overlay(frame, face_cascade);
+		writer.write(frame);
 		//track(trackerframe, tracker);
 
 		//Manual way to break our loop if stuck
@@ -80,7 +91,7 @@ int main(void)
 }
 
 void overlay(Mat frame, std::vector<CascadeClassifier>& face_cascade)
-{ 
+{  
 	std::vector<std::vector<Rect>> faces(face_cascade.size());
 	Mat frame_gray;
 	cvtColor(frame, frame_gray, COLOR_BGR2GRAY);
@@ -93,15 +104,17 @@ void overlay(Mat frame, std::vector<CascadeClassifier>& face_cascade)
 	
 	for (int j = 0; j < faces.size(); j++)
 	{
-		for (int i = 0; i < faces[j].size; i++)
+		//bizzare compiler error if put j directly in next for statment
+		int x = j;
+		for (int i = 0; i < faces[x].size(); i++)
 		{
 			Point center(faces[j][i].x + faces[j][i].width / 2, faces[j][i].y + faces[j][i].height / 2);
-			rectangle(frame, faces[j][i], Scalar(0, 50*j, 255), 3, 8, 0);
+			rectangle(frame, faces[j][i], Scalar(25+(75*j), 80*j, 40*j), 3, 8, 0);
 			Mat faceROI = frame_gray(faces[j][i]);
 		}
 	}
-	//Display on window
-	imshow("Test", frame);
+	//Display on window*/
+	//imshow("Test", frame);
 }
 
 //read up on move const. for frame. this could be gummy if i get a bunch
