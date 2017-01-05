@@ -4,64 +4,90 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/tracking.hpp>
+#include <opencv2/dnn.hpp>
 
 
 #include <iostream>
 #include <vector>
 #include <stdio.h>
 #include <string>
+#include <fstream>
+#include <cstdlib>
 
 using namespace cv;
+using namespace cv::dnn;
 
 String video = "C:/Users/Michael Dalton/Documents/Visual Studio 2015/Projects/OpenCVFaceFarm/Tempdata/Kakkmaddafakka.mp4";
-String face_xml = "C:/Users/Michael Dalton/Desktop/opencv_build/install/etc/haarcascades/haarcascade_frontalface_alt.xml";
-String face_xml1 = "C:/Users/Michael Dalton/Desktop/opencv_build/install/etc/haarcascades/haarcascade_frontalface_alt2.xml";
-String face_xml2 = "C:/Users/Michael Dalton/Desktop/opencv_build/install/etc/haarcascades/haarcascade_frontalface_alt_tree.xml";
-String face_xml3 = "C:/Users/Michael Dalton/Desktop/opencv_build/install/etc/haarcascades/haarcascade_frontalface_default.xml";
-CascadeClassifier face_cascade;
+String modelTxt = "C:/Users/Michael Dalton/Documents/Visual Studio 2015/Projects/OpenCVFaceFarm/Tempdata/bvlc_googlenet.prototxt";
+String modelBin = "C:/Users/Michael Dalton/Documents/bvlc_googlenet.caffemodel";
+String img = "C:/Users/Michael Dalton/Documents/Visual Studio 2015/Projects/OpenCVFaceFarm/Tempdata/hongkong.jpg";
 
-
-void overlay(Mat frame);
-void track(Mat frame, MultiTracker& tracker);
-
+void getMaxClass(dnn::Blob &probBlob, int *classId, double *classProb)
+{
+	Mat probMat = probBlob.matRefConst().reshape(1, 1); //reshape the blob to 1x1000 matrix
+	Point classNumber;
+	minMaxLoc(probMat, NULL, classProb, NULL, &classNumber);
+	*classId = classNumber.x;
+}
+std::vector<String> readClassNames(const char *filename = "synset_words.txt")
+{
+	std::vector<String> classNames;
+	std::ifstream fp(filename);
+	if (!fp.is_open())
+	{
+		std::cerr << "File with classes labels not found: " << filename << std::endl;
+		exit(-1);
+	}
+	std::string name;
+	while (!fp.eof())
+	{
+		std::getline(fp, name);
+		if (name.length())
+			classNames.push_back(name.substr(name.find(' ') + 1));
+	}
+	fp.close();
+	return classNames;
+}
 
 //Program start
 int main(void)
 {
-	//basic mats
+	//basic mat
 	Mat frame;
-	Mat trackerframe;
 
 	//cam
-	VideoCapture feed(video);
-	feed.read(frame);
+	//VideoCapture feed(video);
 
+	Net net = dnn::readNetFromCaffe(modelTxt, modelBin);
 
-	//init tracker and track container
-	//MultiTracker tracker("KCF");
-	//std::vector<Rect2d> tracked_objects;
-	
+	if (net.empty()) { std::cerr << "Cant intialize net" << std::endl; }
 
-	//Load our pre-made xml
-	if (!face_cascade.load(face_xml1)) { std::cerr << "Error Loading face_xml\n"; return -1; };
-	if (!feed.isOpened()) { std::cerr << "Error opening webcam\n"; return -1; }
+	namedWindow("GoogLeNet", CV_WINDOW_AUTOSIZE);
 
-	double width = feed.get(CV_CAP_PROP_FRAME_WIDTH);
-	double height = feed.get(CV_CAP_PROP_FRAME_HEIGHT);
+	frame = imread(img);
+	if (img.empty()) { std::cerr << "img prob" << std::endl; }
 
-	//namedWindow("Test", CV_WINDOW_AUTOSIZE);
-	//namedWindow("Tracker Window", CV_WINDOW_AUTOSIZE);
-	//feed >> trackerframe;
-	//selectROI("Tracker Window", trackerframe, tracked_objects);
-	//if (tracked_objects.size() <= 0) { return 0; }
-	//tracker.add(trackerframe, tracked_objects);
-	
-	
-	//--- INITIALIZE VIDEOWRITER
+	resize(frame, frame, Size(224, 224));
+	dnn::Blob inputBlob = dnn::Blob::fromImages(img);
+
+	net.setBlob(".data", inputBlob);
+	net.forward();
+
+	dnn::Blob probLayer = net.getBlob("prob");
+
+	int id;
+	double classProb;
+	getMaxClass(probLayer, &id, &classProb);
+
+	std::vector<String> classNames = readClassNames();
+	std::cout << "Bestest Class:" << classNames.at(id);
+	//Lets do one img before vid impl
+
+	/*--- INITIALIZE VIDEOWRITER
 	VideoWriter writer;
 	int codec = CV_FOURCC('M', 'J', 'P', 'G');  // select desired codec (must be available at runtime)
 	double fps = 60.0;                          // framerate of the created video stream
-	String filename = "C:/Users/Michael Dalton/Documents/Visual Studio 2015/Projects/OpenCVFaceFarm/Tempdata/alt.avi";             // name of the output video file
+	String filename = "C:/Users/Michael Dalton/Documents/Visual Studio 2015/Projects/OpenCVFaceFarm/Tempdata/alt_tree.avi";             // name of the output video file
 	writer.open(filename, codec, fps, frame.size(), true);
 
 	if (!writer.isOpened()) { std::cerr << "couldnt open\n"; return -1; }
@@ -69,53 +95,20 @@ int main(void)
 	while (true)
 	{
 		bool capture = feed.read(frame);
-		bool trackcapture = feed.read(trackerframe);
 
-		if (!capture || !trackcapture)
+		if (!capture)
 		{
 			std::cout << "Can't read from feed" << std::endl;
 			break;
 		}
 
 		overlay(frame);
-		writer.write(frame);
-		//track(trackerframe, tracker);
 
 		//Manual way to break our loop if stuck
 		char c = (char)waitKey(10);
 		if (c == 27) { break; }
-	} 
+	} */
+
+
 	return 0;
-}
-
-void overlay(Mat frame)
-{  
-	std::vector<Rect> faces;
-	Mat frame_gray;
-	cvtColor(frame, frame_gray, COLOR_BGR2GRAY);
-	equalizeHist(frame_gray, frame_gray);
-	//-- Detect faces
-	face_cascade.detectMultiScale(frame_gray, faces, 1.1, 2, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
-	
-
-	for (int i = 0; i < faces.size(); i++)
-	{
-		Point center(faces[i].x + faces[i].width / 2, faces[i].y + faces[i].height / 2);
-		rectangle(frame, faces[i], Scalar(100, 100, 100), 3, 8, 0);
-		Mat faceROI = frame_gray(faces[i]);
-	}
-	//Display on window*/
-	//imshow("Test", frame);
-}
-
-//read up on move const. for frame. this could be gummy if i get a bunch
-//of frame c.b.v's
-void track(Mat frame, MultiTracker& tracker)
-{
-	tracker.update(frame);
-	for (unsigned i = 0; i < tracker.objects.size(); i++)
-	{
-		rectangle(frame, tracker.objects[i], Scalar(255, 0, 0), 2, 1);
-	}
-	imshow("Tracker Window", frame);
 }

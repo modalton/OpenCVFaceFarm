@@ -244,3 +244,8 @@ ModelManifest.xml
 # FAKE - F# Make
 .fake/
 /Tempdata/alt.avi
+/Tempdata/alt_tree.avi
+/Tempdata/alt2.avi
+/Tempdata/hongkong.jpg
+/Tempdata/bvlc_googlenet.prototxt.txt
+/Tempdata/synset_words.txt
